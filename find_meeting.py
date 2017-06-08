@@ -37,10 +37,12 @@ class MeetingPlaces:
     count = 0
 
     for places in places_result['results']:
-      rating[places['name']] = places['rating']
       # print places.keys()
+      if 'rating' in places.keys():
+        rating[places['name']] = places['rating']
+
       dist_place1 = self.gmaps.distance_matrix(geocode_one[0]['geometry']['location'],
-                                          places['name'] + ", hyderabad",
+                                          places['geometry']['location'],
                                           mode="driving", departure_time=datetime.now())
       duration = dist_place1["rows"][0]['elements'][0]
       if duration['status'] == 'OK':
@@ -68,4 +70,4 @@ class MeetingPlaces:
 
 meetingObject = MeetingPlaces()
 meetingObject.connect_to_maps()
-meetingObject.find_meeting_places('ibis hotel, hyderabad', 'google india, hyderabad', 'restaurant')
+meetingObject.find_meeting_places('ibis hotel, hyderabad', 'google india, hyderabad', 'cafe')
