@@ -1,6 +1,8 @@
 import googlemaps as maps
 from datetime import datetime
 import operator
+from math import sqrt
+import smallest_enclosing_circle as sec
 
 class MeetingPlaces:
 
@@ -23,15 +25,31 @@ class MeetingPlaces:
     # print distance_result["rows"][0]['elements'][0]['duration']
 
 
-  def find_meeting_places(self, place1, place2, type_of_place):
-    geocode_one = self.compute_geocode(place1)
-    geocode_two = self.compute_geocode(place2)
+  def find_meeting_places(self, init_loc, type_of_place):
+    geocode_one = self.compute_geocode(init_loc[0])
+    geocode_two = self.compute_geocode(init_loc[1])
 
-    max_radius = self.gmaps.distance_matrix(place1, place2, mode="driving", departure_time=datetime.now())
-    max_radius = max_radius['rows'][0]['elements'][0]['distance']['value']
-    print max_radius
-    places_result = self.gmaps.places_nearby(location=geocode_one[0]['geometry']['location'], radius=max_radius,
-                                             type=type_of_place)
+    geocodes = []
+    x_mean = 0.0
+    y_mean = 0.0
+    for loc in init_loc:
+      x = self.compute_geocode(loc)[0]['geometry']['location']['lat']
+      y = self.compute_geocode(loc)[0]['geometry']['location']['lng']
+      geocodes.append([x, y])
+      
+    circle = sec.make_circle(geocodes)
+    centre = [circle[0], circle[1]]
+    max_radius = circle[2]
+    
+    actual_distance = self.gmaps.distance_matrix(init_loc[0], init_loc[1], mode="driving", departure_time=datetime.now())
+    actual_distance = actual_distance['rows'][0]['elements'][0]['distance']['value']
+    print actual_distance
+    map_distance = sqrt((
+      geocode_one[0]['geometry']['location']['lat'] - geocode_two[0]['geometry']['location']['lat'])**2 +
+                        (geocode_one[0]['geometry']['location']['lng'] - geocode_two[0]['geometry']['location']['lng'])**2)
+    max_radius = max_radius * (actual_distance / map_distance)
+
+    places_result = self.gmaps.places_nearby(location=centre, radius=max_radius, type=type_of_place)
     dist = {}
     dist_two, dist_one, rating = {}, {}, {}
     count = 0
@@ -41,8 +59,7 @@ class MeetingPlaces:
     for result in results:
       candidate_places.append(result['geometry']['location'])
       
-    distance_result = self.gmaps.distance_matrix([geocode_one[0]['geometry']['location'],
-                                                  geocode_two[0]['geometry']['location']], 
+    distance_result = self.gmaps.distance_matrix(geocodes, 
                                                  candidate_places, mode="driving",
                                                  departure_time=datetime.now())
 
@@ -50,25 +67,23 @@ class MeetingPlaces:
     max_duration, cum_duration, rating = {}, {}, {}
     count = 0
     for place in places_result['results']:
-      max_duration[place['name']] = max(distance_result['rows'][0]['elements'][count]['duration']['value'],
-                                         distance_result['rows'][1]['elements'][count]['duration']['value'])
-      cum_duration[place['name']] = distance_result['rows'][0]['elements'][count]['duration']['value'] + distance_result['rows'][1]['elements'][count]['duration']['value']
+      max_duration[place['name']] = max([distance_result['rows'][i]['elements'][count]['duration']['value'] for i in range(len(init_loc))])
+      cum_duration[place['name']] = sum([distance_result['rows'][i]['elements'][count]['duration']['value'] for i in range(len(init_loc))])
       if 'rating' in place.keys():
         rating[place['name']] = place['rating']
       count += 1
     
 
     sorted_max_duration = sorted(max_duration.items(), key=operator.itemgetter(1))
-    # print dist_one, dist_two
+
     print sorted_max_duration[:]
     sorted_cum_duration = sorted(cum_duration.items(), key=operator.itemgetter(1))
     sorted_rating = list(reversed(sorted(rating.items(), key=operator.itemgetter(1))))
     print sorted_cum_duration
-    print rating
-    # sorted_rating = list(reversed(sorted(rating.items(), key=operator.itemgetter(1))))
-    # print sorted_rating[:]
+    print sorted_rating
   
 
 meetingObject = MeetingPlaces()
 meetingObject.connect_to_maps()
-meetingObject.find_meeting_places('ibis hotel, hyderabad', 'google india, hyderabad', 'cafe')
+initial_locations = ['ibis hotel, hyderabad', 'google india, hyderabad', 'inorbit mall, hyderabad']
+meetingObject.find_meeting_places(initial_locations, 'spa')
