@@ -36,37 +36,38 @@ class MeetingPlaces:
     dist_two, dist_one, rating = {}, {}, {}
     count = 0
 
-    for places in places_result['results']:
-      # print places.keys()
-      if 'rating' in places.keys():
-        rating[places['name']] = places['rating']
+    results = places_result['results']
+    candidate_places = []
+    for result in results:
+      candidate_places.append(result['geometry']['location'])
+      
+    distance_result = self.gmaps.distance_matrix([geocode_one[0]['geometry']['location'],
+                                                  geocode_two[0]['geometry']['location']], 
+                                                 candidate_places, mode="driving",
+                                                 departure_time=datetime.now())
 
-      dist_place1 = self.gmaps.distance_matrix(geocode_one[0]['geometry']['location'],
-                                          places['geometry']['location'],
-                                          mode="driving", departure_time=datetime.now())
-      duration = dist_place1["rows"][0]['elements'][0]
-      if duration['status'] == 'OK':
-        dist[places['name']] = duration['duration']['value']
-        dist_one[places['name']] = duration['duration']['value']
+    print len(distance_result['rows']), len(distance_result['rows'][1]['elements'])
+    max_duration, cum_duration, rating = {}, {}, {}
+    count = 0
+    for place in places_result['results']:
+      max_duration[place['name']] = max(distance_result['rows'][0]['elements'][count]['duration']['value'],
+                                         distance_result['rows'][1]['elements'][count]['duration']['value'])
+      cum_duration[place['name']] = distance_result['rows'][0]['elements'][count]['duration']['value'] + distance_result['rows'][1]['elements'][count]['duration']['value']
+      if 'rating' in place.keys():
+        rating[place['name']] = place['rating']
+      count += 1
+    
 
-      dist_place2 = self.gmaps.distance_matrix(geocode_two[0]['geometry']['location'], places['name'] + ", hyderabad",
-                                          mode="driving", departure_time=datetime.now())
-      duration = dist_place2["rows"][0]['elements'][0]
-      if duration['status'] == 'OK':
-        if places['name'] in dist.keys():
-          count += 1
-        dist[places['name']] += duration['duration']['value']
-        dist_two[places['name']] = duration['duration']['value']
-
-      # print count
-      # print rating
-
-    sorted_dist = sorted(dist.items(), key=operator.itemgetter(1))
+    sorted_max_duration = sorted(max_duration.items(), key=operator.itemgetter(1))
     # print dist_one, dist_two
-    print sorted_dist[:]
+    print sorted_max_duration[:]
+    sorted_cum_duration = sorted(cum_duration.items(), key=operator.itemgetter(1))
     sorted_rating = list(reversed(sorted(rating.items(), key=operator.itemgetter(1))))
-    print sorted_rating[:]
-
+    print sorted_cum_duration
+    print rating
+    # sorted_rating = list(reversed(sorted(rating.items(), key=operator.itemgetter(1))))
+    # print sorted_rating[:]
+  
 
 meetingObject = MeetingPlaces()
 meetingObject.connect_to_maps()
