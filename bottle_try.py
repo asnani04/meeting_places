@@ -7,11 +7,29 @@ app = Bottle()
 
 @app.route('/index')
 def form_details():
-    return '''<form action="/index" method="POST">
-    Location 1: <input name="l1" type="text" />
-    Location 2: <input name="l2" type="text" />
-    Type of meeting place: <input name="type_of_place" type="text" />
-    <input value="find places" type="submit" />
+    return '''
+    <style>
+    body {
+                background-color: #66ff66;
+    }
+    #locations {
+    	text-align: center;
+    	padding: 2px;
+    	border-radius: 4px;
+    	background-color: lightgrey;
+    	margin-left: 400px;
+    	margin-right: 400px;
+    	border-style: ridge;
+    	border-width: 4px;
+    	border-color: lightgrey;
+	}
+    </style>
+    <form action="/index" id="locations" method="POST">
+    <br>
+    Location 1: <input name="l1" type="text" /> <br> <br>
+    Location 2: <input name="l2" type="text" /> <br> <br>
+    Type of meeting place: <input name="type_of_place" type="text" /> <br> <br>
+    <input value="Find Places" type="submit" /> <br>
     </form>
     '''
 
