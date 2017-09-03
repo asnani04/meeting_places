@@ -10,7 +10,7 @@ def form_details():
     return '''
     <style>
     body {
-                background-color: #66ff66;
+                background-color: #99ff99;
     }
     #locations {
     	text-align: center;
@@ -29,6 +29,11 @@ def form_details():
     Location 1: <input name="l1" type="text" /> <br> <br>
     Location 2: <input name="l2" type="text" /> <br> <br>
     Type of meeting place: <input name="type_of_place" type="text" /> <br> <br>
+    Filter results on the basis of <select name="criteria">
+    	<option value="travel_time">Travel Time</option>
+    	<option value="waiting_time">Waiting Time</option>
+    	<option value="rating">Rating</option>
+  	</select> <br> <br>
     <input value="Find Places" type="submit" /> <br>
     </form>
     '''
