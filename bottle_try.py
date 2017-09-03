@@ -44,11 +44,12 @@ def find_places():
     for i in range(2):
         initial_locations.append(request.forms.get('l' + str(i+1)))
     type_of_place = request.forms.get('type_of_place')
+    pref = request.forms.get('criteria')
 
     meetingObject = MeetingPlaces()
     meetingObject.connect_to_maps()
     sorted_max_duration = meetingObject.find_meeting_places(
-        initial_locations, type_of_place)
+        initial_locations, type_of_place, pref)
     return '<p>' + str(sorted_max_duration[0][0]) + '</p>'
     # return '''<p> This is my day. </p>'''
     
