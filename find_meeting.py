@@ -7,13 +7,15 @@ import smallest_enclosing_circle as sec
 class MeetingPlaces:
 
   def __init__(self):
-    self.api_file = "../../maps-api-key.txt"
+    self.api_file = "../../maps-api-key3.txt"
     self.gmaps = None
 
   def connect_to_maps(self):
     key = open(self.api_file).readlines()
+    print key[0][:-1]
     self.gmaps = maps.Client(key=key[0][:-1])
-
+    
+    
   def compute_geocode(self, place):
     return self.gmaps.geocode(place)
 
@@ -88,9 +90,8 @@ class MeetingPlaces:
     return sorted_list
   
 
-"""
+
 meetingObject = MeetingPlaces()
 meetingObject.connect_to_maps()
 initial_locations = ['iit kanpur, kanpur', 'z square, kanpur']
 meetingObject.find_meeting_places(initial_locations, 'restaurant')
-"""
