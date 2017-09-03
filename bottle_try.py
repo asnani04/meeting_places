@@ -71,7 +71,7 @@ def form_details():
     Location 1: <input name="l1" type="text" /> <br> <br>
     Location 2: <input name="l2" type="text" /> <br> <br>
     Location 3: <input name="l3" type="text" /> <br> <br>
-    <div id="wrapper">
+    <div id="fields">
     <button type="button" onclick="add_field()">Add more locations</button>
     </div>
     <br>Type of meeting place: <input name="type_of_place" type="text" /> <br> <br>
@@ -85,8 +85,8 @@ def form_details():
     
     <script>
     function add_field() {
-    	var dummy = '<span>Label: <input type="text"><small>(ft)</small></span>\r\n';
-		document.getElementById('wrapper').innerHTML += dummy;
+    	var dummy = 'Location 4: <input name="l4" type="text" /> <br> <br> <button type="button" onclick="add_field()">Add more locations</button>';
+		document.getElementById("fields").innerHTML = dummy;
     }
     </script>
     '''
