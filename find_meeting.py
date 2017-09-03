@@ -25,7 +25,7 @@ class MeetingPlaces:
     # print distance_result["rows"][0]['elements'][0]['duration']
 
 
-  def find_meeting_places(self, init_loc, type_of_place):
+  def find_meeting_places(self, init_loc, type_of_place, pref='waiting_time'):
     geocode_one = self.compute_geocode(init_loc[0])
     geocode_two = self.compute_geocode(init_loc[1])
 
@@ -43,7 +43,7 @@ class MeetingPlaces:
     
     actual_distance = self.gmaps.distance_matrix(init_loc[0], init_loc[1], mode="driving", departure_time=datetime.now())
     actual_distance = actual_distance['rows'][0]['elements'][0]['distance']['value']
-    print actual_distance
+    # print actual_distance
     map_distance = sqrt((
       geocode_one[0]['geometry']['location']['lat'] - geocode_two[0]['geometry']['location']['lat'])**2 +
                         (geocode_one[0]['geometry']['location']['lng'] - geocode_two[0]['geometry']['location']['lng'])**2)
@@ -59,29 +59,33 @@ class MeetingPlaces:
     for result in results:
       candidate_places.append(result['geometry']['location'])
       
-    distance_result = self.gmaps.distance_matrix(geocodes, 
-                                                 candidate_places, mode="driving",
-                                                 departure_time=datetime.now())
+    if pref != 'rating':
+      distance_result = self.gmaps.distance_matrix(geocodes, 
+                                                   candidate_places,
+                                                   mode="driving",
+                                                   departure_time=datetime.now())
 
-    print len(distance_result['rows']), len(distance_result['rows'][1]['elements'])
+    # print len(distance_result['rows']), len(distance_result['rows'][1]['elements'])
     max_duration, cum_duration, rating = {}, {}, {}
     count = 0
     for place in places_result['results']:
-      max_duration[place['name']] = max([distance_result['rows'][i]['elements'][count]['duration']['value'] for i in range(len(init_loc))])
-      cum_duration[place['name']] = sum([distance_result['rows'][i]['elements'][count]['duration']['value'] for i in range(len(init_loc))])
-      if 'rating' in place.keys():
-        rating[place['name']] = place['rating']
+      if pref == 'rating':
+        if 'rating' in place.keys():
+          rating[place['name']] = place['rating']
+      elif pref == 'waiting_time':
+        max_duration[place['name']] = max([distance_result['rows'][i]['elements'][count]['duration']['value'] for i in range(len(init_loc))])
+      elif pref == 'travel_time':
+        cum_duration[place['name']] = sum([distance_result['rows'][i]['elements'][count]['duration']['value'] for i in range(len(init_loc))])
       count += 1
     
+    if pref == 'rating':
+      sorted_list = list(reversed(sorted(rating.items(), key=operator.itemgetter(1))))
+    elif pref == 'waiting_time':
+      sorted_list = sorted(max_duration.items(), key=operator.itemgetter(1))
 
-    sorted_max_duration = sorted(max_duration.items(), key=operator.itemgetter(1))
-
-    # print sorted_max_duration[:]
-    sorted_cum_duration = sorted(cum_duration.items(), key=operator.itemgetter(1))
-    sorted_rating = list(reversed(sorted(rating.items(), key=operator.itemgetter(1))))
-    # print sorted_cum_duration
-    # print sorted_rating
-    return sorted_max_duration
+    elif pref == 'travel_time':
+      sorted_list = sorted(cum_duration.items(), key=operator.itemgetter(1))
+    return sorted_list
   
 
 """
