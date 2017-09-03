@@ -18,7 +18,7 @@ def form_details():
     	padding: 2px;
     	border-radius: 4px;
     	background-color: lightgrey;
-    	margin-top: 200px;	
+    	margin-top: 150px;	
     	margin-left: 400px;
     	margin-right: 400px;
     	border-style: ridge;
@@ -123,6 +123,7 @@ def find_places():
 	}
 
 	.locations {
+		font-size: 20px;
     	text-align: center;
     	padding: 5px;
     	border-radius: 4px;
@@ -135,6 +136,10 @@ def find_places():
     	border-width: 4px;
     	border-color: lightgrey;
 	}
+
+	.locations:hover {
+    	background-color: yellow;
+    }
 
 	li {	
     	float: left;
