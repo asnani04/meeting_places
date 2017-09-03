@@ -54,11 +54,13 @@ def find_places():
     for i in range(3):
         initial_locations.append(request.forms.get('l' + str(i+1)))
     type_of_place = request.forms.get('type_of_place')
+    pref = request.forms.get('criteria')
 
     meetingObject = MeetingPlaces()
     meetingObject.connect_to_maps()
+
     sorted_list = meetingObject.find_meeting_places(
-        initial_locations, type_of_place)
+        initial_locations, type_of_place, pref)
     string_req = ""
     for j in range(len(sorted_list)):
     	string_req = string_req + '<p>' + str(sorted_list[j][0]) + '</p><br>'
