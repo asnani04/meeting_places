@@ -17,15 +17,13 @@ def form_details():
 
 @app.route('/index', method='POST')
 def find_places():
-    loc1 = request.forms.get('l1')
-    loc2 = request.forms.get('l2')
+    initial_locations = []
+    for i in range(2):
+        initial_locations.append(request.forms.get('l' + str(i+1)))
     type_of_place = request.forms.get('type_of_place')
 
     meetingObject = MeetingPlaces()
     meetingObject.connect_to_maps()
-    initial_locations = []
-    initial_locations.append(loc1)
-    initial_locations.append(loc2)
     sorted_max_duration = meetingObject.find_meeting_places(
         initial_locations, type_of_place)
     return '<p>' + str(sorted_max_duration[0][0]) + '</p>'
