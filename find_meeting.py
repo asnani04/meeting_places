@@ -76,14 +76,17 @@ class MeetingPlaces:
 
     sorted_max_duration = sorted(max_duration.items(), key=operator.itemgetter(1))
 
-    print sorted_max_duration[:]
+    # print sorted_max_duration[:]
     sorted_cum_duration = sorted(cum_duration.items(), key=operator.itemgetter(1))
     sorted_rating = list(reversed(sorted(rating.items(), key=operator.itemgetter(1))))
-    print sorted_cum_duration
-    print sorted_rating
+    # print sorted_cum_duration
+    # print sorted_rating
+    return sorted_max_duration
   
 
+"""
 meetingObject = MeetingPlaces()
 meetingObject.connect_to_maps()
-initial_locations = ['ibis hotel, hyderabad', 'google india, hyderabad', 'inorbit mall, hyderabad']
-meetingObject.find_meeting_places(initial_locations, 'spa')
+initial_locations = ['iit kanpur, kanpur', 'z square, kanpur']
+meetingObject.find_meeting_places(initial_locations, 'restaurant')
+"""
