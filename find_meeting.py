@@ -90,8 +90,9 @@ class MeetingPlaces:
     return sorted_list
   
 
-
+"""
 meetingObject = MeetingPlaces()
 meetingObject.connect_to_maps()
 initial_locations = ['iit kanpur, kanpur', 'z square, kanpur']
 meetingObject.find_meeting_places(initial_locations, 'restaurant')
+"""

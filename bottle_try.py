@@ -63,7 +63,10 @@ def find_places():
         initial_locations, type_of_place, pref)
     string_req = ""
     for j in range(len(sorted_list)):
-    	string_req = string_req + '<p>' + str(sorted_list[j][0]) + '</p><br>'
+        try:
+            string_req = string_req + '<p>' + str(sorted_list[j][0]) + '</p><br>'
+        except:
+            pass
     return string_req
     # return '''<p> This is my day. </p>'''
     
