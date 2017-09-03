@@ -172,7 +172,10 @@ def find_places():
 	</ul><br><br><br>
     '''
     for j in range(len(sorted_list)):
-    	string_req = string_req + '<div class="locations">' + str(sorted_list[j][0]) + '</div>'
+        try:
+    	    string_req = string_req + '<div class="locations">' + str(sorted_list[j][0]) + '</div>'
+        except:
+            pass
     return string_req
     # return '''<p> This is my day. </p>'''
     
