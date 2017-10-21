@@ -1,4 +1,5 @@
 import googlemaps as maps
+import argparse
 from datetime import datetime
 import operator
 from math import sqrt
@@ -7,13 +8,15 @@ import smallest_enclosing_circle as sec
 class MeetingPlaces:
 
   def __init__(self):
-    self.api_file = "../../maps-api-key.txt"
+    self.api_file = "../../maps-api-key3.txt"
     self.gmaps = None
 
   def connect_to_maps(self):
     key = open(self.api_file).readlines()
+    print key[0][:-1]
     self.gmaps = maps.Client(key=key[0][:-1])
-
+    
+    
   def compute_geocode(self, place):
     return self.gmaps.geocode(place)
 
@@ -88,9 +91,25 @@ class MeetingPlaces:
     return sorted_list
   
 
-"""
+def add_arguments(parser):
+  parser.add_argument("--loc1", type=str, default="")
+  parser.add_argument("--loc2", type=str, default="")
+  parser.add_argument("--loc3", type=str, default="")
+  parser.add_argument("--loc4", type=str, default="")
+  parser.add_argument("--loc5", type=str, default="")
+  parser.add_argument("--loc6", type=str, default="")
+  parser.add_argument("--place", type=str, default="restaurant")
+  parser.add_argument("--pref", type=str, default="waiting_time")
+  
+parser = argparse.ArgumentParser()
+add_arguments(parser)
+FLAGS, unparsed = parser.parse_known_args()
+# print(FLAGS)
+# print(unparsed)
+
 meetingObject = MeetingPlaces()
 meetingObject.connect_to_maps()
-initial_locations = ['iit kanpur, kanpur', 'z square, kanpur']
-meetingObject.find_meeting_places(initial_locations, 'restaurant')
-"""
+initial_locations = unparsed
+sorted_list = meetingObject.find_meeting_places(
+  initial_locations, FLAGS.place, FLAGS.pref)
+print(sorted_list)
