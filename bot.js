@@ -8,14 +8,16 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const request = require('request');
 const path = require('path');
-var PythonShell = require('python-shell');
+var sleep = require('sleep');
+var back = require('./back/meet.js');
 
 var messengerButton = "<html><head><title>Facebook Messenger Bot</title></head><body><h1>Facebook Messenger Bot</h1>This is a bot based on Messenger Platform QuickStart. For more details, see their <a href=\"https://developers.facebook.com/docs/messenger-platform/guides/quick-start\">docs</a>.<script src=\"https://button.glitch.me/button.js\" data-style=\"glitch\"></script><div class=\"glitchButton\" style=\"position:fixed;top:20px;right:20px;\"></div></body></html>";
 var friendLocationProcessing = 0;
 var latitude = 0.0;
+var THRESH = 4;
 
 var location_info = {};
-
+console.log(location_info)
 
 // The rest of the code implements the routes for our Express server.
 let app = express();
@@ -47,6 +49,7 @@ app.get('/', function(req, res) {
 
 // Message processing
 app.post('/webhook', function (req, res) {
+  console.log("EST")
   console.log(req.body);
   var data = req.body;
 
@@ -80,7 +83,7 @@ app.post('/webhook', function (req, res) {
 });
 
 
-function receiveLocations(event){
+function receiveLocations(event, list_locs, list_coords){
   var senderID = event.sender.id;
   var recipientID = event.recipient.id;
   var message = event.message;
@@ -100,9 +103,12 @@ function receiveLocations(event){
       location_info[senderID]["location"].push(tmp);
     }
     else if(messageAttachments){
+      console.log("ATTACHMENT")
       var tmp = {}
       tmp["type"] = "coordinates"
-      tmp["data"] = message.attachments[0].payload.coordinates;
+      tmp['data'] = {};
+      tmp["data"]['lat'] = message.attachments[0].payload.coordinates.lat;
+      tmp['data']['lng'] = message.attachments[0].payload.coordinates.long;
       location_info[senderID]["location"].push(tmp);
     }
     location_info[senderID]["receive_location"]+= 1;
@@ -111,35 +117,101 @@ function receiveLocations(event){
     
     if(location_info[senderID]["receive_location"] == location_info[senderID]["number"]){
       location_info[senderID]["state"] = 4;
-      var newMessage = "Wow mother fucker! Thanks though.";
-      // console.log("locations are: " + location_info[senderID]["location"][0]['data']);
-      var list_locs = [];
+      var newMessage = "What type of place would you like to meet at?";  //Wow mother fucker! Thanks though.
+      console.log("list locs and list coords are: ", list_locs, list_coords);
       for (var i=0; i < location_info[senderID]["number"]; i++) {
-        list_locs.push(location_info[senderID]['location'][i]['data'])
+        if (location_info[senderID]['location'][i]['type'] == 'coordinates') {
+          list_coords.push(location_info[senderID]['location'][i]['data'])
+        } else {
+          list_locs.push(location_info[senderID]['location'][i]['data']) 
+        }
       }
-      
       var options = {
-        args: list_locs
+        scriptPath: './',
+        args: ['value1', 'value2', 'value3']
       };
-      PythonShell.run('runnable_find_meeting.py', options, function (err, results) {
-        if (err) throw err;
-        // results is an array consisting of messages collected during execution
-        console.log('results: %j', results);
-      });
-      sendTextMessage(senderID, newMessage)
+      sendPlaceMessage(senderID, newMessage)
     }
     else{
-      var newMessage = "Send location for next son of a bitch!";
-      sendTextMessage(senderID, newMessage)
+      var newMessage = "Send next location.";
+      sendLocationMessage(senderID, newMessage)
     }
+  }
+  return list_locs, list_coords;
+}
+
+function getMeetupType(event){
+  var senderID = event.sender.id;
+  var recipientID = event.recipient.id;
+  var message = event.message;
+  var messageText = message.text;
+  if(messageText){
+    location_info[senderID]["typeOfPlace"] = messageText
+    location_info[senderID]["state"] = 5;
+    var newMessage = "What would you like to optimize on?";
+    sendPreferenceMessage(senderID, newMessage)
+  }
+  else{
+    var newMessage = "What type of place would you like to meet at?";
+    sendPlaceMessage(senderID, newMessage)
+  }
+}
+
+function findResult(list_locs, list_coords, type_of_place, messageText, cb){
+  return back.findCandidates(list_locs, list_coords, type_of_place, messageText);
+}
+
+function getPreference(event, list_locs, list_coords, type_of_place){
+  var senderID = event.sender.id;
+  var items = [];
+  var recipientID = event.recipient.id;
+  var message = event.message;
+  var messageText = message.text;
+  if(messageText){
+    location_info[senderID]["preference"] = messageText
+    location_info[senderID]["state"] = 6;
+    console.log("list locs and list coords are as follows: ", list_locs, list_coords);
+    back.findCandidates(list_locs, list_coords, type_of_place, messageText, function(err, items){
+      if(err){
+        console.log("ERROR in sending result: ", err)
+      }
+      else if(items == null){
+        var newMessage = 'No place found!';
+        sendTextMessage(senderID, newMessage);
+      }
+      else{
+        console.log("RESPONSE(final result): ", items);
+        console.log("items are: ", items);
+        console.log("JSON items: ", JSON.stringify(items))
+        var count = 0
+        var newMessage = '';
+        var messages = []
+        while(count < THRESH && count < items.length){
+          newMessage = newMessage + JSON.stringify(count+1) + '. ' + items[count][0] + '\n';
+          console.log("all the items: ", JSON.stringify(items[count][2]['lat']), items[count][2]['lat'])
+          messages.push("https://www.google.co.in/maps/search/?api=1&query=" + JSON.stringify(items[count][2]['lat']) + "," + 
+                          JSON.stringify(items[count][2]['lng']) + "&query_place_id=" + JSON.stringify(items[count][3]));
+          count++;
+        }
+        console.log("Final result: " + newMessage)  // Thank you!
+        for (var i=0; i<messages.length; i++) {
+          sendMapsMessage(senderID, messages[i], items[i][0], 
+                          JSON.stringify(items[count][2]['lat']), JSON.stringify(items[count][2]['lng']));
+        }
+      }
+    })
+  }
+  else{
+    var newMessage = "What would you like to optimize on?";
+    sendPreferenceMessage(senderID, newMessage)
   }
 }
 
 function sendLocationString(senderID){
-  var messageText = "Care to send your location mofo??"
+  var messageText = "Please send your location."
   location_info[senderID]["state"] = 2;
   location_info[senderID]["location"] = []
-  sendTextMessage(senderID, messageText);
+  sendLocationMessage(senderID, messageText);
 }
 
 // Incoming events handling
@@ -154,22 +226,40 @@ function receivedMessage(event) {
   console.log(JSON.stringify(message));
 
   var messageId = message.mid;
-
+  var list_locs = [];
+  var list_coords = [];
   var messageText = message.text;
   var messageAttachments = message.attachments;
+  console.log(messageText, messageAttachments)
   if(messageText){
-    if (messageText.toLowerCase() == "start plan"){
+    if (messageText.toLowerCase() == "send nudes"){
+      sendGenericMessage(senderID);
+    } 
+    else if (messageText.toLowerCase() == "start plan"){
       startPlan(senderID);
     }
     else if(senderID in location_info){
       if("state" in location_info[senderID]){
-        if(location_info[senderID]["state"] == 3){
+        if (location_info[senderID]["state"] == 5){
+          console.log("list locs and list coords are: ", list_locs, list_coords);
+          getPreference(event, location_info[senderID]['list_locs'], location_info[senderID]['list_coords'], 
+                        location_info[senderID]['typeOfPlace']);
+        }
+        else if (location_info[senderID]["state"] == 4){
+          // console.log("list locs and list coords: ", list_locs, list_coords);
+          getMeetupType(event);
+        }
+        else if(location_info[senderID]["state"] == 3){
           //send a thank you msg
-          receiveLocations(event);
+          console.log("list locs and list coords: ", list_locs, list_coords);
+          list_locs, list_coords = receiveLocations(event, list_locs, list_coords);
+          location_info[senderID]["list_locs"] = list_locs;
+          location_info[senderID]['list_coords'] = list_coords;
         }
         else if(location_info[senderID]["state"] == 2){
           location_info[senderID]["receive_location"] = 0;
-          receiveLocations(event);
+          list_locs, list_coords = receiveLocations(event, list_locs, list_coords);
+          console.log("list locs and list coords: ", list_locs, list_coords);
         }
         else if(location_info[senderID]["state"] == 0){
           if(!isNaN(messageText)){
@@ -200,54 +290,20 @@ function receivedMessage(event) {
     if(location_info[senderID]["state"] == 3){
       console.log("This is inside else if messageAttachments. state 3")
       //send a thank you msg
-      receiveLocations(event);
+      list_locs, list_coords = receiveLocations(event, list_locs, list_coords);
+      location_info[senderID]["list_locs"] = list_locs;
+      location_info[senderID]['list_coords'] = list_coords;
     }
     else if(location_info[senderID]["state"] == 2 && message.attachments[0].payload.coordinates){
       console.log("This is inside else if messageAttachments. state 2")
       location_info[senderID]["receive_location"] = 0;
-      receiveLocations(event);
+      receiveLocations(event, list_locs, list_coords);
     }
     else{
       console.log("This is inside else if messageAttachments. state unknown")
       startPlan(senderID);
     }
   }
-  
-  
-//   if (messageText) {
-//     // If we receive a text message, check to see if it matches a keyword
-//     // and send back the template example. Otherwise, just echo the text we received.
-//     messageText = messageText.toLowerCase();
-//     switch (messageText) {
-//       case 'generic':
-//         sendGenericMessage(senderID);
-//         break;
-      
-//       case 'start plan':
-//         startPlan(senderID);
-//         break;
-        
-//       case 'tell me my latitude':
-//         sendLatitude(senderID);
-//         break;
-
-//       default:
-//         sendTextMessage(senderID, messageText);
-//     }
-//   } else if (messageAttachments) {
-//     var coordinates = message.attachments[0].payload.coordinates;
-//     if (coordinates) {
-//       // The user has sent their location
-//       sendTextMessage(senderID, "How many friends do you want to include in the meetup?");
-//       latitude = coordinates.lat;
-//       console.log("Received coordinates lat: and long:",
-//                   latitude, coordinates.long);
-      
-//       friendLocationProcessing = 1;
-//     } else {
-//       sendTextMessage(senderID, "Message with attachment received");  
-//     }
-//   }
 }
 
 function receivedPostback(event) {
@@ -261,10 +317,15 @@ function receivedPostback(event) {
 
   console.log("Received postback for user %d and page %d with payload '%s' " + 
     "at %d", senderID, recipientID, payload, timeOfPostback);
-
+  if (payload == 'NEW_PLAN_PAYLOAD'){
+    startPlan(senderID);
+  }
+  else{
+    sendTextMessage(senderID, 'Type "Start plan" to start');
+  }
   // When a postback is called, we'll send a message back to the sender to 
   // let them know it was successful
-  sendTextMessage(senderID, "Postback called");
+  
 }
 
 //////////////////////////
@@ -283,6 +344,113 @@ function sendTextMessage(recipientId, messageText) {
   callSendAPI(messageData);
 }
 
+function sendMapsMessage(recipientId, messageText, subtitle, lat, long) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      "attachment": {
+        "type": "template",
+        "payload": {
+          "template_type": "generic",
+          "elements": [{
+            "title": subtitle,
+            "subtitle": 'Location Shared By Bot',
+            "image_url": "https://maps.googleapis.com/maps/api/staticmap?key=" + "AIzaSyBeWcVkl8kxqTdbvNjQfAtvJ0SlfBeXSEQ" +
+            "&markers=color:red|label:B|" + lat + "," + long + "&size=360x360&zoom=13",
+            "item_url": messageText
+          }]
+        }
+      }
+    }
+  }
+  callSendAPI(messageData);
+}
+
+function sendLocationMessage(recipientId, messageText) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      text: messageText,
+      quick_replies: [
+        {
+          "content_type":"location"
+        },
+      ]
+    }
+  };
+
+  callSendAPI(messageData);
+}
+
+function sendPreferenceMessage(recipientId, messageText) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      text: messageText,
+      quick_replies: [
+        {
+          content_type: "text",
+          title: "waiting_time",
+          payload: "<NUMBER_PAYLOAD>",
+        },
+        {
+          content_type: "text",
+          title: "travel_time",
+          payload: "<NUMBER_PAYLOAD>",
+        },
+        {
+          content_type: "text",
+          title: "rating",
+          payload: "<NUMBER_PAYLOAD>",
+        },
+      ]
+    }
+  };
+
+  callSendAPI(messageData);
+}
+
+function sendPlaceMessage(recipientId, messageText) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      text: messageText,
+      quick_replies: [
+        {
+          content_type: "text",
+          title: "bar",
+          payload: "<NUMBER_PAYLOAD>",
+        },
+        {
+          content_type: "text",
+          title: "cafe",
+          payload: "<NUMBER_PAYLOAD>",
+        },
+        {
+          content_type: "text",
+          title: "restaurant",
+          payload: "<NUMBER_PAYLOAD>",
+        },
+        {
+          content_type: "text",
+          title: "shopping_mall",
+          payload: "<NUMBER_PAYLOAD>",
+        },
+      ]
+    }
+  };
+
+  callSendAPI(messageData);
+}
+
 function sendGenericMessage(recipientId) {
   var messageData = {
     recipient: {
@@ -294,33 +462,10 @@ function sendGenericMessage(recipientId) {
         payload: {
           template_type: "generic",
           elements: [{
-            title: "rift",
-            subtitle: "Next-generation virtual reality",
-            item_url: "https://www.oculus.com/en-us/rift/",               
-            image_url: "http://messengerdemo.parseapp.com/img/rift.png",
-            buttons: [{
-              type: "web_url",
-              url: "https://www.oculus.com/en-us/rift/",
-              title: "Open Web URL"
-            }, {
-              type: "postback",
-              title: "Call Postback",
-              payload: "Payload for first bubble",
-            }],
-          }, {
-            title: "touch",
-            subtitle: "Your Hands, Now in VR",
-            item_url: "https://www.oculus.com/en-us/touch/",               
-            image_url: "http://messengerdemo.parseapp.com/img/touch.png",
-            buttons: [{
-              type: "web_url",
-              url: "https://www.oculus.com/en-us/touch/",
-              title: "Open Web URL"
-            }, {
-              type: "postback",
-              title: "Call Postback",
-              payload: "Payload for second bubble",
-            }]
+            title: "Nudes",
+            subtitle: "Next-generation nudes",
+            item_url: "https://image.ibb.co/cuPBYG/3440442_photo_of_the_vitruvian_man_by_leonardo_da_vinci_from_1492_on_textured_background_1000.jpg",               
+            image_url: "https://image.ibb.co/cuPBYG/3440442_photo_of_the_vitruvian_man_by_leonardo_da_vinci_from_1492_on_textured_background_1000.jpg",
           }]
         }
       }
@@ -361,11 +506,36 @@ function startPlan(recipientId) {
       id: recipientId
     },
     message: {
-      text: "How many friends do you want to include in the meetup?",
+      text: "How many people do you want to include in the meetup?",
       quick_replies: [
         {
           content_type: "text",
-          title: "Send no_of_people",
+          title: "2",
+          payload: "<NUMBER_PAYLOAD>",
+        },
+        {
+          content_type: "text",
+          title: "3",
+          payload: "<NUMBER_PAYLOAD>",
+        },
+        {
+          content_type: "text",
+          title: "4",
+          payload: "<NUMBER_PAYLOAD>",
+        },
+        {
+          content_type: "text",
+          title: "5",
+          payload: "<NUMBER_PAYLOAD>",
+        },
+        {
+          content_type: "text",
+          title: "6",
+          payload: "<NUMBER_PAYLOAD>",
+        },
+        {
+          content_type: "text",
+          title: "7",
           payload: "<NUMBER_PAYLOAD>",
         },
       ]

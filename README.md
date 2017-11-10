@@ -1,23 +1,17 @@
-# Facebook Messenger Bot
+# MeetApp 
 
-This example project creates a Facebook Messenger bot, completely
-mirroring the quickstart located in [Messenger Platform docs](https://developers.facebook.com/docs/messenger-platform/guides/quick-start).
+Alice, Bob, Carl and you reside in the same city, and want to meet up at a happening place on the weekend. After all, everyone needs some deep conversations over a beer after an unremarkable week, don't they? Or maybe it's your birthday and you want to spend it with the people you really care about, but don't have the patience to search for the most convenient place to have fun. 
 
-It's an echo bot that responds to a user's message by repeating their message back to them. It also sends a generic template when a message with "generic" text is received. This project is not dependent on any external libraries and can easily be extended.
+Sounds familiar? 
 
-![](https://cdn.glitch.com/ca73ace5-3fff-4b8f-81c5-c64452145271%2FmessengerBotGIF.gif)
+**MeetApp is the one stop solution for all the hassles pertaining to planning your meetup.** Enter the locations of all the interested friends, and bam! The app suggests possible cafes / pubs / restaurants where you could all meet. These are ranked according to what would be the most convenient places for the group, taking your preference over luxury and time flexibility into account. 
 
-## Getting Started
-To get started you need to:
+## How to Plan your Meetup
 
-- Set up your Facebook app on Facebook
+Open the app and just start your plan!
 
-- Configure your Facebook App
+Note:
+- The locations can be entered as text or sent via the "Send Location" button. 
+- To start a new plan at any point in the flow, just tap the menu button and select "New Plan"
 
-  The `Callback URL` you set when configuring your app on Facebook is your Glitch project's publish URL with '/webhook' appended. The publish URL is what loads when you click 'Show' and has the format 'https://project-name.glitch.me', so for this example we used 'https://messenger-bot.glitch.me/webhook' for the Callback URL.
-
-  The `Verify Token` is a string you make up - it's just used to make sure it is your Facebook app that your server is interacting with. 
-
-- Copy your app credentials into the `.env` file
-
-For more detailed setup instructions, see [Messenger Platform Quick Start](https://developers.facebook.com/docs/messenger-platform/guides/quick-start).
+Happy planning!

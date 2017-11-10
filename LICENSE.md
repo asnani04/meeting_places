@@ -1,4 +1,4 @@
-The MIT License (MIT)
+<b>Privacy Policy of the MeetApp Facebook app</b>
 
 Copyright (c) 2016 Mikhail Larionov and contributors
 
