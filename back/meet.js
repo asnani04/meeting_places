@@ -5,18 +5,21 @@ var googleMapsClient = require('@google/maps').createClient({
 
 var sec = require('./smallest_enclosing_circle.js');
 var typeOfPlace = 'restaurant';
-var pref = 'travel_time';
+var pref = 'waiting_time';
 
 function createuser(listLoc, callback){
   googleMapsClient.geocode({
     address: listLoc
   }, function(err, response) {
     console.log("Inside func")
-    // console.log(err, response)
+    console.log("createuser response: ", err, response)
     if(err){
       return callback(err, null);
     }
     // console.log(response.json.results);
+    if (response.json.results.length == 0) {
+      return callback(1, null);
+    }
     var loc = response.json.results[0].geometry.location;
     return callback(null, {lat: loc.lat, lng: loc.lng});
     }
@@ -31,11 +34,15 @@ function getLocations(listLocs, cb){
   
   async.times(len, function(n, next){
     createuser(listLocs[n], function(err, resp){
+      if (err) {
+        console.log("I caught an error", err);
+      }
       next(err, resp);
     })
   }, function(err, locs){
     if(err){
-      console.log(err)
+      console.log("this is the err", err, locs)
+      return cb(err, null);
     }
     else{
       console.log("ListLoks: ", locs);
@@ -47,9 +54,15 @@ function getLocations(listLocs, cb){
 module.exports = {
   findCandidates: function (listLocs, listCoords, type_of_place, preference, cb) {
     console.log("Listloc initial value: ", listLocs)
+    for (var i=0; i<listLocs.length; i++) {
+      listLocs[i] = listLocs[i].toLowerCase();
+    }
+    type_of_place = type_of_place.toLowerCase();
+    preference = preference.toLowerCase();
     getLocations(listLocs, function(err, resp){
       if(err){
         console.log(err);
+        return cb(1, null);
       }
       var locs = resp.concat(listCoords);
       pref = preference;
@@ -66,12 +79,23 @@ module.exports = {
         destinations: [second]
       }, function(err, response) {
         if (err) {
-          console.log(err);
+          console.log("error received ", err);
+          return cb(2, null);
         } else {
+          console.log("response from dm: ", JSON.stringify(response.json));
+          var status = response.json.rows[0].elements[0].status;
+          if (status == "ZERO_RESULTS") {
+            return cb(2, null);
+          }
           var actualDistance = response.json.rows[0].elements[0].distance.value;
           console.log("response from distanceMatrix: ", actualDistance);
           var mapDistance = Math.sqrt(Math.pow(first.lat - second.lat, 2) + Math.pow(first.lng - second.lng, 2));
-          var maxRadius = circle.r * (actualDistance / mapDistance);
+          if (mapDistance > 0) {
+            var maxRadius = circle.r * (actualDistance / mapDistance);  
+          } else {
+            var maxRadius = 2000.0;
+          }
+          maxRadius = (maxRadius > 2000.0)? maxRadius : 2000.0;
           console.log("max radius is: ", maxRadius, "type of place is: ", typeOfPlace);
           googleMapsClient.placesNearby({
             location: {lat: circle.x, lng: circle.y},
@@ -80,6 +104,7 @@ module.exports = {
           }, function(err, response) {
             if (err) {
               console.log(err);
+              return cb(3, null)
             } else {
               console.log("places nearby response: ", response.json.results);
               if(response.json.results.length == 0){
@@ -97,6 +122,9 @@ module.exports = {
               if (pref != 'rating') {
                 console.log("locs are: ", locs);
                 console.log("candidate places are: ", candidatePlaces);
+                if (locs.length >= 6) {
+                  candidatePlaces = candidatePlaces.slice(0, 14);
+                }
                 googleMapsClient.distanceMatrix({
                   origins: locs,
                   destinations: candidatePlaces,
@@ -105,21 +133,16 @@ module.exports = {
                 }, function (err, response) {
                   if (err) {
                     console.log(err);
+                    return cb(4, null);
                   } else {
                     console.log("response received for waiting time");
                     var maxDuration = {};
                     var cumDuration = {};
                     var rating = {};
+                    var price_level = {};
                     var count = 0;
                     if (pref == 'waiting_time') {
-                      // console.log("waiting time computations", locs);
-                      // console.log("length of result and loc: ", results.length, locs.length)
-                      // for (var i=0; i<2; i++) {
-                      //   for (var j=0; j<2; j++) {
-                      //      console.log("nested example: ", i, j); 
-                      //   }
-                      // }
-                      for (var i=0; i<results.length; i++) {
+                      for (var i=0; i<candidatePlaces.length; i++) {
                         console.log("i is: ", i);
                         var maxDist = 0.0;
                         for (var j=0; j<locs.length; j++) {
@@ -144,36 +167,81 @@ module.exports = {
                       });
                       console.log("recommended places: ", items.slice(0, 5));
                       return cb(null, items) //return items;
-                    } else if (pref == 'travel_time') {
-                      for (var i=0; i<results.length; i++) {
-                        console.log("i is: ", i);
-                        var sumDist = 0.0;
+                    } else if (pref == 'magic_recipe') {
+                      var place_scores = {}
+                      var w = {'rating': 0.2, 'time': 0.6, 'price': 0.2};
+                      var maxDistanceMax = 0.0;
+                      for (var i=0; i<candidatePlaces.length; i++) {
+                        if ('opening_hours' in results[i]) {
+                          if (results[i]['opening_hours']['open_now'] == false) {
+                              continue;
+                          }
+                        }
+                        var maxDist = 0.0;
                         for (var j=0; j<locs.length; j++) {
-                          // console.log("RESPONSE.JSON: ", JSON.stringify(response.json));
-                          console.log("i is: ", i, "j is: ", j);
-                          console.log("NEXT: ", response.json.rows[j].elements[i]);
                           var dist = response.json.rows[j].elements[i].duration.value;
-                          console.log("dist: ", dist, "locs: ", locs[j], "place: ", candidatePlaces[i]);
-                          sumDist = sumDist + dist;
+                          if (dist > maxDist) {
+                            maxDist = dist;
+                          }
                         }
                         console.log("i is: ", i, results[i].name, maxDist);
-                        // maxDuration.push({key: results[i].name, value: maxDist});
-                        cumDuration[results[i].name] = {dist: sumDist, loc: candidatePlaces[i], id: candidatePlaceIDs[i]};
+                        if (maxDist > maxDistanceMax) {
+                          maxDistanceMax = maxDist;
+                        } 
+                        maxDuration[results[i].name] = {dist: maxDist, 
+                                                        loc: candidatePlaces[i], id: candidatePlaceIDs[i]};
+                        console.log("reached here - rating next", results[i].rating)
+                        if (!('rating' in results[i]) || results[i].rating == undefined) {
+                          rating[results[i].name] = {rating: 3.0, 
+                                                    loc: candidatePlaces[i], id: candidatePlaceIDs[i]}; 
+                        } else {
+                          rating[results[i].name] = {rating: results[i].rating,
+                                                    loc: candidatePlaces[i], id: candidatePlaceIDs[i]};
+                        }
+                        rating[results[i].name]['rating'] = (rating[results[i].name]['rating']) / 5.0;
+                        console.log("price level next", results[i].price_level);
+                        if (!('price_level' in results[i]) || results[i].price_level == undefined) {
+                          price_level[results[i].name] = {price_level: 2.0, 
+                                                    loc: candidatePlaces[i], id: candidatePlaceIDs[i]}; 
+                        } else {
+                          price_level[results[i].name] = {price_level: results[i].price_level,
+                                                          loc: candidatePlaces[i], id: candidatePlaceIDs[i]};
+                        }
+                        price_level[results[i].name]['price_level'] = 
+                          (4.0 - price_level[results[i].name]['price_level']) / 4.0;                                                        
+                        console.log("cleared price level");
                       }
-                      var items = Object.keys(cumDuration).map(function(key) {
-                        return [key, cumDuration[key]['dist'], cumDuration[key]['loc'], cumDuration[key]['id']];
+                      for (var i=0; i<candidatePlaces.length; i++) {
+                        if ('opening_hours' in results[i]) {
+                          if (results[i]['opening_hours']['open_now'] == false) {
+                              continue;
+                          }
+                        }
+                        maxDuration[results[i].name]['dist'] = (maxDistanceMax - maxDuration[results[i].name]['dist']) /
+                          maxDistanceMax;
+                        place_scores[results[i].name] = {score: w['rating'] * rating[results[i].name]['rating'] + 
+                                                      w['time'] * maxDuration[results[i].name]['dist'] + 
+                                                       w['price'] * price_level[results[i].name]['price_level'], 
+                                                       loc: candidatePlaces[i], id: candidatePlaceIDs[i]};
+                      }
+                      console.log(maxDuration);
+                      console.log(rating);
+                      console.log(price_level);
+                      console.log(place_scores);
+                      var items = Object.keys(place_scores).map(function(key) {
+                        return [key, place_scores[key]['score'], place_scores[key]['loc'], place_scores[key]['id']];
                       });
                       items.sort(function(first, second) {
-                        return first[1] - second[1];  
+                        return second[1] - first[1];  
                       });
                       console.log("recommended places: ", items.slice(0, 5));
-                      return cb(null, items)  //return items;
+                      return cb(null, items) //return items;
                     } 
                   }
                 })
               } else {
                 var ratings = [];
-                for (var i=0; i<results.length; i++) {
+                for (var i=0; i<candidatePlaces.length; i++) {
                   ratings[results[i].name] = {rating: results[i].rating, loc: candidatePlaces[i], id: candidatePlaceIDs[i]};
                 }
                 var items = Object.keys(ratings).map(function (key) {

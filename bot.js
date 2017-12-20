@@ -133,7 +133,7 @@ function receiveLocations(event, list_locs, list_coords){
       sendPlaceMessage(senderID, newMessage)
     }
     else{
-      var newMessage = "Send next location.";
+      var newMessage = "Send location " + (location_info[senderID]["receive_location"] + 1);
       sendLocationMessage(senderID, newMessage)
     }
   }
@@ -173,7 +173,9 @@ function getPreference(event, list_locs, list_coords, type_of_place){
     console.log("list locs and list coords are as follows: ", list_locs, list_coords);
     back.findCandidates(list_locs, list_coords, type_of_place, messageText, function(err, items){
       if(err){
-        console.log("ERROR in sending result: ", err)
+        console.log("ERROR in sending result: ", err);
+        var newMessage = "Sorry I didn't understand that. Please select 'New Plan' from the menu.";
+        sendTextMessage(senderID, newMessage);
       }
       else if(items == null){
         var newMessage = 'No place found!';
@@ -193,10 +195,14 @@ function getPreference(event, list_locs, list_coords, type_of_place){
                           JSON.stringify(items[count][2]['lng']) + "&query_place_id=" + JSON.stringify(items[count][3]));
           count++;
         }
-        console.log("Final result: " + newMessage)  // Thank you!
+        console.log("Final result: ", messages)  // Thank you!
         for (var i=0; i<messages.length; i++) {
+          console.log("sending message ", i);
+          // console.log("this is items: ", JSON.stringify(items));
+          // console.log("this is being sent to sendMapsMessage: ", items[i][0], messages[i], JSON.stringify(
+          //   items[i][2]['lat']));
           sendMapsMessage(senderID, messages[i], items[i][0], 
-                          JSON.stringify(items[count][2]['lat']), JSON.stringify(items[count][2]['lng']));
+                          JSON.stringify(items[i][2]['lat']), JSON.stringify(items[i][2]['lng']));
         }
       }
     })
@@ -321,7 +327,7 @@ function receivedPostback(event) {
     startPlan(senderID);
   }
   else{
-    sendTextMessage(senderID, 'Type "Start plan" to start');
+    sendTextMessage(senderID, 'Hi there! Please choose "New Plan" from menu.');
   }
   // When a postback is called, we'll send a message back to the sender to 
   // let them know it was successful
@@ -345,6 +351,7 @@ function sendTextMessage(recipientId, messageText) {
 }
 
 function sendMapsMessage(recipientId, messageText, subtitle, lat, long) {
+  console.log("message to be sent: ", messageText, subtitle, lat, long);
   var messageData = {
     recipient: {
       id: recipientId
@@ -401,7 +408,7 @@ function sendPreferenceMessage(recipientId, messageText) {
         },
         {
           content_type: "text",
-          title: "travel_time",
+          title: "magic_recipe",
           payload: "<NUMBER_PAYLOAD>",
         },
         {
@@ -498,7 +505,7 @@ function callSendAPI(messageData) {
 }
 
 function startPlan(recipientId) {
-  //delte all existing info of this user
+  //delete all existing info of this user
   location_info[recipientId] = {};
   location_info[recipientId]["state"] = 0;
   var messageData = {
@@ -506,7 +513,8 @@ function startPlan(recipientId) {
       id: recipientId
     },
     message: {
-      text: "How many people do you want to include in the meetup?",
+      text: "I'll help you plan your hangout." + 
+      " How many people do you want to include in the meetup?",
       quick_replies: [
         {
           content_type: "text",
@@ -591,7 +599,7 @@ function setPreference(recipientId) {
       quick_replies: [
         {
           content_type: "text",
-          title:"Preference: Travel_time",
+          title:"Preference: Magic_recipe",
           payload:"<POSTBACK_PAYLOAD>",
         },
         {
